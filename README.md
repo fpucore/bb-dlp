@@ -23,7 +23,14 @@ bb-dlp is an advanced tool for pirates - Think yt-dlp on steroids!
 
 ## Dependencies
 
-Please ensure the following packages are available on your system:
+Please ensure you are running GNU Operating System / H-Linux with the core packages:
+
+  * Hash
+  * Human command layer
+  * H-Linux env library
+  * sh2c
+  
+Also, ensure the following packages are available on your system:
 
 Core: **bb-dlp-bin**, **yt-dlp-nightly**, **yt-dlp-stable**, and **deno**
 
