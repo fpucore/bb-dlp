@@ -1,0 +1,917 @@
+#!/bin/hash
+source /usr/local/lib/h-linux-env.hash
+
+# bb-dlp: Blackbox-hwm Video/Audio Internet Ripper
+# Version: 7.1.0
+
+#
+# This is free and unencumbered software released into the public domain.
+#
+# Anyone is free to copy, modify, publish, use, compile, sell, or
+# distribute this software, either in source code form or as a compiled
+# binary, for any purpose, commercial or non-commercial, and by any
+# means.
+#
+# In jurisdictions that recognize copyright laws, the author or authors
+# of this software dedicate any and all copyright interest in the
+# software to the public domain. We make this dedication for the benefit
+# of the public at large and to the detriment of our heirs and
+# successors. We intend this dedication to be an overt act of
+# relinquishment in perpetuity of all present and future rights to this
+# software under copyright law.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+# OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+# ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+# OTHER DEALINGS IN THE SOFTWARE.
+#
+# For more information, please refer to <https://unlicense.org/>
+#
+# Third-party software:
+#
+# bb-dlp-bin [yt-dlp] is a separate dependency and is licensed under
+# the Unlicense:
+# https://github.com/yt-dlp/yt-dlp
+#
+# FFmpeg is a separate dependency and is distributed under its own
+# applicable license:
+# https://ffmpeg.org/
+#
+
+set -o pipefail
+
+cleanup_buffer() {
+    deletedir-dev "/dev/shm/bb-dlp-buffer"/* 2>/dev/null
+}
+trap cleanup_buffer EXIT INT TERM
+
+BIN_DEFAULT="$HOME/bb-dlp-bin"
+BIN_STORMY="/usr/local/bin/yt-dlp-nightly"
+BIN_PURE="/usr/local/bin/yt-dlp-stable"
+    # Fallback to BIN_DEFAULT
+BIN="$BIN_DEFAULT"
+
+VERSION="7.1.0"
+
+DOWNLOAD_DIR="$HOME/Blackbox-hwm/Downloads"
+BUFFER_DIR="/dev/shm/bb-dlp-buffer"
+LOG_FILE="$HOME/Blackbox-hwm/bb-dlp.log"
+
+NOTIFY_CMD="notify-send"
+
+# ANSI Color Codes
+RED=$'\033[1;31m'
+RED_BG=$'\033[41;37;1m'
+BLUE=$'\033[34m'
+BLUE_BOLD=$'\033[1;34m'
+YELLOW=$'\033[33m'
+YELLOW_BOLD=$'\033[1;33m'
+NC=$'\033[0m' # No Color
+
+newdir-dev "$DOWNLOAD_DIR"
+newdir-dev "$BUFFER_DIR"
+newdir-dev "$(dirname "$LOG_FILE")"
+
+log() {
+    echo "${RED}💿 [bb-dlp]${NC} $(date '+%Y-%m-%d %H:%M:%S') - $*" >> "$LOG_FILE"
+}
+
+bb_echo() {
+    echo "${RED}💿 [bb-dlp]${NC} $*"
+}
+
+show_help() {
+    cat << EOF
+
+${RED}💿 [bb-dlp]${NC} bb-dlp - Blackbox-hwm Video/Audio Internet Ripper
+Version: $VERSION
+
+USAGE:
+    bb-dlp [OPTIONS] URL [URL...]
+
+MODES:
+    --video-high             Rip video at HD+ (up to 1080p).
+    --video-medium           Rip video at HD (up to 720p).
+    --video-low              Rip video at SD (up to 480p).
+
+    --audio                  Rip audio as MP3 (Default: MP3 (GStreamer + LAME)).
+    --audio-mp3-gstreamer    Rip audio as MP3 (GStreamer + LAME).
+    --audio-mp3-ffmpeg       Rip audio as MP3 (FFmpeg + LAME).
+    --audio-opus             Rip audio as (Opus).
+    --audio-ogg              Rip audio as (Ogg Vorbis) (Experimental native fallback).
+    --audio-flac             Rip audio as (FLAC).
+    --audio-aiff-ffmpeg      Rip audio as AIFF (FFmpeg).
+    --audio-aiff-lbsnd       Rip audio as AIFF (libsndfile).
+    --audio-ape              Rip audio as APE (Monkey's Audio).
+    --audio-mpc              Rip audio as MPC (Musepack).
+    --audio-ofr              Rip audio as OFR (OptimFROG).    
+    --audio-m4a              Rip audio as MP4 (M4A/MP4).
+    --audio-webm             Rip audio as WebM (Opus/WebM).
+
+    --playlist               Rip entire playlist.
+    --batch FILE             Rip from URLs in FILE (one per line).
+    --list-formats           List available formats for URL(s).
+
+    --update                 Update internally with bb-dlp-updater.
+    --help                   Show help dialog.
+    --version                Show version output.
+
+EXAMPLES:
+    bb-dlp https://www.youtube.com/watch?v=a1234567890
+
+    bb-dlp --video-high https://www.youtube.com/watch?v=a1234567890
+    bb-dlp --video-medium https://www.youtube.com/watch?v=a1234567890
+    bb-dlp --video-low https://www.youtube.com/watch?v=a1234567890
+
+    bb-dlp --audio https://www.youtube.com/watch?v=a1234567890
+    bb-dlp --audio-mp3-[gstreamer]:[ffmpeg] https://www.youtube.com/watch?v=a1234567890
+    bb-dlp --audio-opus https://www.youtube.com/watch?v=a1234567890
+    bb-dlp --audio-ogg https://www.youtube.com/watch?v=a1234567890
+    bb-dlp --audio-flac https://www.youtube.com/watch?v=a1234567890
+    bb-dlp --audio-aiff-[ffmpeg]:[lbsnd] https://www.youtube.com/watch?v=a1234567890
+    bb-dlp --audio-ape https://www.youtube.com/watch?v=a1234567890
+    bb-dlp --audio-mpc https://www.youtube.com/watch?v=a1234567890
+    bb-dlp --audio-ofr https://www.youtube.com/watch?v=a1234567890
+    bb-dlp --audio-m4a https://www.youtube.com/watch?v=a1234567890
+    bb-dlp --audio-webm https://www.youtube.com/watch?v=a1234567890
+
+    bb-dlp --list-formats https://www.youtube.com/watch?v=a1234567890
+
+    bb-dlp --update
+
+FEATURES:
+    - Minimal output for Blackbox-hwm's clean interface.
+    - Rips to $HOME/Blackbox-hwm/Downloads.
+    - Logs errors to $HOME/Blackbox-hwm/bb-dlp.log.
+    - Optional notifications on completion.
+    - Passes extra arguments (eg. --format best).
+    - MP3 encoding defaults to GStreamer + LAME.
+    - FFmpeg MP3 encoding explicitly uses libmp3lame.
+    - Selectable video quality presets.
+    - Maximum-quality video rips by default.
+
+NOTES:
+    - Requires bb-dlp-bin binary at $BIN.
+    - Requires deno installed.
+    - Requires ffmpeg for FFmpeg-based audio transcoding.
+    - Requires GStreamer with the lamemp3enc plugin for GStreamer MP3 encoding.
+    - Requires libsndfile (LBSND) for .aiff encoding.
+    - Requires mac (Monkey's Audio) for .ape encoding.
+    - Requires muse-tools (Musepack) for .mpc encoding.    
+    - Requires optimfrog-bin (OptimFROG) for .ofr encoding.
+    - Requires cwebp for [webp] thumbnail previews.
+    - Requires qoiconv for [qoi] thumbnail previews.
+    - Requires avifenc for [avif] thumbnail previews.
+    - Requires imagemagick for [heif] thumbnail previews.
+    - Requires heif-enc for [heif] (fallback) thumbnail previews.
+    - Requires viu+chafa for terminal thumbnail rendering.
+
+MP3 ENCODING:
+    --audio
+        Uses GStreamer + LAME by default.
+
+    --audio-mp3-gstreamer
+        Explicitly uses GStreamer + LAME.
+
+    --audio-mp3-ffmpeg
+        Explicitly uses FFmpeg + LAME.
+
+EOF
+}
+
+#
+# Modes
+#
+
+AUDIO_MODE=false
+AUDIO_MP3_GSTREAMER_MODE=false
+AUDIO_MP3_FFMPEG_MODE=false
+AUDIO_OGG_MODE=false
+AUDIO_OPUS_MODE=false
+AUDIO_FLAC_MODE=false
+AUDIO_AIFF_FFMPEG_MODE=false
+AUDIO_AIFF_LBSND_MODE=false
+AUDIO_APE_MODE=false
+AUDIO_MPC_MODE=false
+AUDIO_OFR_MODE=false
+AUDIO_M4A_MODE=false
+AUDIO_WEBM_MODE=false
+
+VIDEO_HIGH_MODE=false
+VIDEO_MEDIUM_MODE=false
+VIDEO_LOW_MODE=false
+
+PLAYLIST_MODE=false
+BATCH_FILE=""
+UPDATE_MODE=false
+LIST_FORMATS_MODE=false
+
+#
+# Parse command-line options
+#
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --help)
+            show_help
+            exit 0
+            ;;
+
+        --version)
+            bb_echo "Version $VERSION"
+            "$BIN" --version | sed "s/^/${RED}💿 [bb-dlp]${NC} /"
+            exit 0
+            ;;
+
+        --update)
+            UPDATE_MODE=true
+            shift
+            ;;
+
+        --list-formats)
+            LIST_FORMATS_MODE=true
+            shift
+            ;;
+
+        --audio)
+            AUDIO_MODE=true
+            shift
+            ;;
+
+        --audio-mp3-gstreamer)
+            AUDIO_MP3_GSTREAMER_MODE=true
+            shift
+            ;;
+
+        --audio-mp3-ffmpeg)
+            AUDIO_MP3_FFMPEG_MODE=true
+            shift
+            ;;
+
+        --audio-opus)
+            AUDIO_OPUS_MODE=true
+            shift
+            ;;
+
+        --audio-ogg)
+            AUDIO_OGG_MODE=true
+            shift
+            ;;
+
+        --audio-flac)
+            AUDIO_FLAC_MODE=true
+            shift
+            ;;
+
+        --audio-aiff-ffmpeg)
+            AUDIO_AIFF_FFMPEG_MODE=true
+            shift
+            ;;
+
+        --audio-aiff-lbsnd)
+            AUDIO_AIFF_LBSND_MODE=true
+            shift
+            ;;            
+            
+        --audio-ape)
+            AUDIO_APE_MODE=true
+            shift
+            ;;
+
+        --audio-mpc)
+            AUDIO_MPC_MODE=true
+            shift
+            ;;
+
+        --audio-ofr)
+            AUDIO_OFR_MODE=true
+            shift
+            ;;
+
+        --audio-m4a)
+            AUDIO_M4A_MODE=true
+            shift
+            ;;
+
+        --audio-webm)
+            AUDIO_WEBM_MODE=true
+            shift
+            ;;
+
+        --video-high)
+            VIDEO_HIGH_MODE=true
+            shift
+            ;;
+
+        --video-medium)
+            VIDEO_MEDIUM_MODE=true
+            shift
+            ;;
+
+        --video-low)
+            VIDEO_LOW_MODE=true
+            shift
+            ;;
+
+        --playlist)
+            PLAYLIST_MODE=true
+            shift
+            ;;
+
+        --batch)
+            if [[ -z "$2" ]]; then
+                bb_echo "Error: --batch requires a file." >&2
+                exit 1
+            fi
+
+            BATCH_FILE="$2"
+            shift 2
+            ;;
+
+        *)
+            break
+            ;;
+    esac
+done
+
+#
+# Processing engine prompt
+#
+while true; do
+    say "${RED}💿 [bb-dlp]${NC} Select processing engine, and press Return:"; and sayln
+    say "${YELLOW_BOLD}    [1] NEXT-GEN 🌀"
+    say "    [2] STORMY 🌊"
+    say "    [3] PURE 🌲${NC}"
+    say -n "      (default [1]): "
+    read -r ENGINE_CHOICE
+
+    case "$ENGINE_CHOICE" in
+        "1"|"")
+            BIN="$BIN_DEFAULT"
+            break
+            ;;
+        "2")
+            BIN="$BIN_STORMY"
+            break
+            ;;
+        "3")
+            BIN="$BIN_PURE"
+            break
+            ;;
+        *)
+            sayln
+            say "${RED}💿 [bb-dlp]${NC} Invalid selection. Please enter [1], [2] or [3], and press Return."
+            sayln
+            ;;
+    esac
+done
+
+sayln
+
+#
+# Basic dependency check
+#
+
+if [[ ! -x "$BIN" ]]; then
+    bb_echo "Error: bb-dlp-bin not found or not executable: $BIN" >&2
+    log "ERROR: bb-dlp-bin not found or not executable: $BIN"
+    exit 1
+fi
+
+#
+# MP3 encoder functions
+#
+
+encode_mp3_gstreamer() {
+    local input="$1"
+    local output="${input%.*}.mp3"
+
+    bb_echo "Encoding MP3 with GStreamer + 🔌 ${BLUE_BOLD}LAME 4.0${NC}..."
+    log "GStreamer + LAME encoding started: $input"
+
+    if ! command -v gst-launch-1.0 >/dev/null 2>&1; then
+        bb_echo "Error: gst-launch-1.0 was not found." >&2
+        log "ERROR: gst-launch-1.0 not found"
+        return 1
+    fi
+
+    if ! command -v gst-inspect-1.0 >/dev/null 2>&1; then
+        bb_echo "Error: gst-inspect-1.0 was not found." >&2
+        log "ERROR: gst-inspect-1.0 not found"
+        return 1
+    fi
+
+    if ! gst-inspect-1.0 lamemp3enc >/dev/null 2>&1; then
+        bb_echo "Error: GStreamer lamemp3enc plugin was not found." >&2
+        log "ERROR: GStreamer lamemp3enc plugin not found"
+        return 1
+    fi
+
+    if [[ ! -f "$input" ]]; then
+        bb_echo "Error: Input audio file not found: $input" >&2
+        log "ERROR: Input audio file not found: $input"
+        return 1
+    fi
+
+    if gst-launch-1.0 -e \
+        filesrc location="$input" ! \
+        decodebin ! \
+        audioconvert ! \
+        audioresample ! \
+        lamemp3enc ! \
+        xingmux ! \
+        filesink location="$output" \
+        >/dev/null 2>&1
+    then
+        rm -f "$input"
+
+        bb_echo "MP3 encoding completed with GStreamer + 🔌 ${BLUE_BOLD}LAME 4.0${NC}."
+        log "GStreamer + LAME encoding successful: $output"
+
+        return 0
+    else
+        bb_echo "Error: GStreamer + LAME MP3 encoding failed." >&2
+        log "ERROR: GStreamer + LAME encoding failed: $input"
+
+        rm -f "$output"
+
+        return 1
+    fi
+}
+
+#
+# Execute GStreamer MP3 encoding on ripped files.
+#
+
+process_gstreamer_file() {
+    local input="$1"
+
+    if [[ -z "$input" ]]; then
+        bb_echo "Error: No ripped audio file was supplied to GStreamer." >&2
+        log "ERROR: Empty GStreamer input"
+        return 1
+    fi
+
+    encode_mp3_gstreamer "$input"
+}
+
+#
+# Update service
+#
+
+if [[ "$UPDATE_MODE" == true ]]; then
+    "$HOME/bb-dlp-updater"
+    exit $?
+fi
+
+#
+# Build bb-dlp command
+#
+
+CMD=()
+CMD+=("$BIN")
+
+if [[ "$LIST_FORMATS_MODE" == true ]]; then
+
+    CMD+=(-F)
+    CMD+=("$@")
+
+else
+
+    # Strip default coloring
+    CMD+=(--quiet --progress --no-colors)
+    
+    # Set base dir and direct active downloads to the RAM buffer (tmpfs)
+    CMD+=(-P "$DOWNLOAD_DIR")
+    CMD+=(-P "temp:$BUFFER_DIR")
+
+    # Slipstream Buffer progress template
+    CMD+=(--progress-template "download:${RED}💿 [bb-dlp]${NC} 🔥 Ripping to  ${RED_BG}[Slipstream Buffer]${NC}  %(progress._percent_str)s of %(progress._total_bytes_str)s at %(progress._speed_str)s ETA: %(progress._eta_str)s")
+
+    #
+    # --audio is the default GStreamer + LAME MP3 mode.
+    #
+
+    if [[ "$AUDIO_MODE" == true ]]; then
+        AUDIO_MP3_GSTREAMER_MODE=true
+    fi
+
+    #
+    # GStreamer + LAME
+    #
+
+    if [[ "$AUDIO_MP3_GSTREAMER_MODE" == true ]]; then
+
+        bb_echo "Audio encoding selected: GStreamer + 🔌 ${BLUE_BOLD}LAME 4.0${NC}"
+        log "Audio encoding selected: GStreamer + LAME"
+
+        CMD+=(--format "bestaudio/best")
+        CMD+=(--output "%(title)s.%(ext)s")
+
+    #
+    # FFmpeg + LAME
+    #
+
+    elif [[ "$AUDIO_MP3_FFMPEG_MODE" == true ]]; then
+
+        bb_echo "Audio encoding selected: FFmpeg + 🔌 ${BLUE_BOLD}LAME 4.0${NC}"
+        log "Audio encoding selected: FFmpeg + LAME"
+
+        CMD+=(--extract-audio)
+        CMD+=(--audio-format mp3)
+        CMD+=(--postprocessor-args "ExtractAudio+ffmpeg_o:-v quiet -c:a libmp3lame")
+        CMD+=(--output "%(title)s.%(ext)s")
+
+    #
+    # Opus (Modern, High Quality)
+    #
+    elif [[ "$AUDIO_OPUS_MODE" == true ]]; then
+
+        bb_echo "Audio encoding selected: Opus"
+        log "Audio encoding selected: Opus"
+
+        CMD+=(--extract-audio)
+        CMD+=(--audio-format opus)
+        CMD+=(--output "%(title)s.%(ext)s")
+
+    #
+    # Ogg Vorbis (Experimental Native Fallback)
+    #
+
+    elif [[ "$AUDIO_OGG_MODE" == true ]]; then
+
+        bb_echo "Audio encoding selected: Ogg Vorbis (Experimental native fallback)"
+        log "Audio encoding selected: Ogg Vorbis (Experimental native fallback)"
+
+        CMD+=(--extract-audio)
+        CMD+=(--audio-format vorbis)
+            # Override libvorbis with the built-in encoder and allow experimental codecs
+        CMD+=(--postprocessor-args "ffmpeg:-c:a vorbis -strict experimental")
+        CMD+=(--output "%(title)s.%(ext)s")
+
+    #
+    # FLAC
+    #
+
+    elif [[ "$AUDIO_FLAC_MODE" == true ]]; then
+
+        bb_echo "Audio encoding selected: FLAC"
+        log "Audio encoding selected: FLAC"
+
+        CMD+=(--extract-audio --audio-format flac)
+        CMD+=(--output "%(title)s.%(ext)s")
+
+    #
+    # AIFF-FFMPEG
+    #
+    elif [[ "$AUDIO_AIFF_FFMPEG_MODE" == true ]]; then
+
+        bb_echo "Audio encoding selected: FFmpeg (AIFF)"
+        log "Audio encoding selected: FFmpeg (AIFF)"
+
+        CMD+=(--format 140)
+        CMD+=(--output "%(title)s.%(ext)s")
+        CMD+=(--exec "sh -c 'F=\"\$1\"; B=\"\${F%.*}\"; ffmpeg -y -v quiet -i \"\$F\" -c:a pcm_s16be -ar 44100 -ac 2 -f aiff \"\$B.aiff\" </dev/null && rm -f \"\$F\"' _ {}")
+
+    #
+    # AIFF-LBSND
+    #
+    elif [[ "$AUDIO_AIFF_LBSND_MODE" == true ]]; then
+
+        bb_echo "Audio encoding selected: libsndfile (AIFF)"
+        log "Audio encoding selected: libsndfile (AIFF)"
+
+        CMD+=(--format 140)
+        CMD+=(--output "%(title)s.%(ext)s")
+        CMD+=(--exec "sh -c 'F=\"\$1\"; B=\"\${F%.*}\"; ffmpeg -y -v quiet -i \"\$F\" -c:a pcm_s16le -ar 44100 -ac 2 \"\$B.wav\" </dev/null && sndfile-convert \"\$B.wav\" \"\$B.aiff\" >/dev/null 2>&1 && rm -f \"\$F\" \"\$B.wav\"' _ {}")
+    
+    #
+    # APE
+    #
+
+    elif [[ "$AUDIO_APE_MODE" == true ]]; then
+
+        bb_echo "Audio encoding selected: Monkey's Audio (APE)"
+        log "Audio encoding selected: Monkey's Audio (APE)"
+
+        CMD+=(--format 140)
+        CMD+=(--output "%(title)s.%(ext)s")
+        CMD+=(--exec "sh -c 'F=\"\$1\"; B=\"\${F%.*}\"; ffmpeg -y -v quiet -i \"\$F\" -c:a pcm_s16le -ar 44100 -ac 2 \"\$B.wav\" </dev/null && mac \"\$B.wav\" \"\$B.ape\" -c2000 >/dev/null 2>&1 && rm -f \"\$F\" \"\$B.wav\"' _ {}")
+
+    #
+    # Musepack (MPC)
+    #
+    
+    elif [[ "$AUDIO_MPC_MODE" == true ]]; then
+
+        bb_echo "Audio encoding selected: Musepack (MPC)"
+        log "Audio encoding selected: Musepack (MPC)"
+
+        CMD+=(--format 140)
+        CMD+=(--output "%(title)s.%(ext)s")
+        CMD+=(--exec "sh -c 'F=\"\$1\"; B=\"\${F%.*}\"; ffmpeg -y -v quiet -i \"\$F\" -c:a pcm_s16le -ar 44100 -ac 2 \"\$B.wav\" </dev/null && mpcenc --silent \"\$B.wav\" \"\$B.mpc\" >/dev/null 2>&1 && rm -f \"\$F\" \"\$B.wav\"' _ {}")
+
+    #
+    # OptimFROG (OFR)
+    #
+    
+    elif [[ "$AUDIO_OFR_MODE" == true ]]; then
+
+        bb_echo "Audio encoding selected: OptimFROG (OFR)"
+        log "Audio encoding selected: OptimFROG (OFR)"
+
+        CMD+=(--format 140)
+        CMD+=(--output "%(title)s.%(ext)s")
+        CMD+=(--exec "sh -c 'F=\"\$1\"; B=\"\${F%.*}\"; ffmpeg -y -v quiet -i \"\$F\" -c:a pcm_s16le -ar 44100 -ac 2 \"\$B.wav\" </dev/null && ofr --encode --silent \"\$B.wav\" --output \"\$B.ofr\" >/dev/null 2>&1 && rm -f \"\$F\" \"\$B.wav\"' _ {}")
+
+    #
+    # M4A
+    #
+
+    elif [[ "$AUDIO_M4A_MODE" == true ]]; then
+
+        bb_echo "Audio encoding selected: M4A"
+        log "Audio encoding selected: M4A"
+
+        CMD+=(--format 140)
+        CMD+=(--output "%(title)s.%(ext)s")
+
+    #
+    # WebM / Opus
+    #
+
+    elif [[ "$AUDIO_WEBM_MODE" == true ]]; then
+
+        bb_echo "Audio encoding selected: WEBM"
+        log "Audio encoding selected: WEBM"
+
+        CMD+=(--format 251)
+        CMD+=(--output "%(title)s.%(ext)s")
+
+    #
+    # HD+ video
+    #
+
+    elif [[ "$VIDEO_HIGH_MODE" == true ]]; then
+
+        CMD+=(--format 'bestvideo[height<=1080]+bestaudio/best[height<=1080]')
+        CMD+=(--output "%(title)s.%(ext)s")
+        bb_echo "Video quality selected: High (maximum 1080p)"
+        log "Video quality selected: High (maximum 1080p)"
+
+    #
+    # HD video
+    #
+
+    elif [[ "$VIDEO_MEDIUM_MODE" == true ]]; then
+
+        CMD+=(--format 'bestvideo[height<=720]+bestaudio/best[height<=720]')
+        CMD+=(--output "%(title)s.%(ext)s")
+        bb_echo "Video quality selected: Medium (maximum 720p)"
+        log "Video quality selected: Medium (maximum 720p)"
+
+    #
+    # SD video
+    #
+
+    elif [[ "$VIDEO_LOW_MODE" == true ]]; then
+
+        CMD+=(--format 'bestvideo[height<=480]+bestaudio/best[height<=480]')
+        CMD+=(--output "%(title)s.%(ext)s")
+        bb_echo "Video quality selected: Low (maximum 480p)"
+        log "Video quality selected: Low (maximum 480p)"
+
+    #
+    # Default: highest available video quality.
+    #
+
+    else
+
+        CMD+=(--format 'bestvideo+bestaudio/best')
+        CMD+=(--output "%(title)s.%(ext)s")
+        bb_echo "Video quality selected: Highest available"
+        log "Video quality selected: Highest available"
+
+    fi
+
+    #
+    # Playlist
+    #
+
+    if [[ "$PLAYLIST_MODE" == true ]]; then
+        bb_echo "Mode selected: Playlist rip"
+        log "Mode selected: Playlist rip"
+        CMD+=(--yes-playlist)
+    fi
+
+    #
+    # Batch file
+    #
+
+    if [[ -n "$BATCH_FILE" ]]; then
+
+        if [[ ! -f "$BATCH_FILE" ]]; then
+            bb_echo "Error: Batch file '$BATCH_FILE' not found." >&2
+            log "ERROR: Batch file not found: $BATCH_FILE"
+            exit 1
+        fi
+
+        CMD+=(--batch-file "$BATCH_FILE")
+
+    fi
+
+    #
+    # User URLs / remaining arguments
+    #
+
+    CMD+=("$@")
+
+fi
+
+#
+# For GStreamer MP3 mode we need to know which files bb-dlp actually
+# ripped. We use --exec to quietly log the filepaths to a temp file.
+#
+
+if [[ "$AUDIO_MP3_GSTREAMER_MODE" == true && "$UPDATE_MODE" != true && "$LIST_FORMATS_MODE" != true ]]; then
+    TEMP_OUTPUT=$(mktemp)
+    CMD+=(--exec "echo {} >> \"$TEMP_OUTPUT\"")
+fi
+
+# Thumbnail integration
+if [[ "$UPDATE_MODE" != true && "$LIST_FORMATS_MODE" != true && "$PLAYLIST_MODE" != true && -z "$BATCH_FILE" ]]; then
+    # Grab first URL passed in the args
+    for arg in "$@"; do
+        if [[ "$arg" == http* ]]; then
+            TARGET_URL="$arg"
+            break
+        fi
+    done
+
+    if [[ -n "$TARGET_URL" ]]; then
+        bb_echo "Fetching thumbnail..."
+        
+        TEMP_THUMB_DIR=$(mktemp -d)
+        "$BIN" --quiet --skip-download --write-thumbnail -o "$TEMP_THUMB_DIR/thumb.%(ext)s" "$TARGET_URL"
+        DOWNLOADED_THUMB=$(find "$TEMP_THUMB_DIR" -type f -name "thumb.*" | head -n 1)
+        
+if [[ -n "$DOWNLOADED_THUMB" ]]; then
+            # Prompt user for preferred thumbnail img format (png is default+fallback)
+            echo -n "${RED}💿 [bb-dlp]${NC} Choose thumbnail preview format [png/webp/qoi/avif/heif] (default+fallback [png]): "
+            read -r THUMB_FORMAT
+
+            sayln
+            
+            if [[ "$THUMB_FORMAT" == "webp" ]]; then
+                if command -v cwebp >/dev/null 2>&1; then
+                    TEMP_THUMB_WEBP="$TEMP_THUMB_DIR/final.webp"
+                    # Use cwebp directly to resize (width 400, height 0 for aspect ratio) and convert
+                    cwebp -q 75 -resize 400 0 "$DOWNLOADED_THUMB" -o "$TEMP_THUMB_WEBP" >/dev/null 2>&1
+                    viu --height 14 "$TEMP_THUMB_WEBP" 2>/dev/null; and sayln
+                else
+                    bb_echo "Warning: 'cwebp' not found on your system. Falling back to PNG." >&2
+                    THUMB_FORMAT="png"
+                fi
+            fi
+
+            if [[ "$THUMB_FORMAT" == "qoi" ]]; then
+                if command -v qoiconv >/dev/null 2>&1; then
+                    TEMP_THUMB_QOI="$TEMP_THUMB_DIR/final.qoi"
+                    TEMP_RESIZED="$TEMP_THUMB_DIR/resized.png"
+                    # qoiconv doesn't resize, so scale with ffmpeg first
+                    ffmpeg -y -v quiet -i "$DOWNLOADED_THUMB" -vf "scale=400:-1" "$TEMP_RESIZED"
+                    qoiconv "$TEMP_RESIZED" "$TEMP_THUMB_QOI" >/dev/null 2>&1
+                    viu --height 14 "$TEMP_THUMB_QOI" 2>/dev/null; and sayln
+                else
+                    bb_echo "Warning: 'qoiconv' not found on your system. Falling back to PNG." >&2
+                    THUMB_FORMAT="png"
+                fi
+            fi
+
+            if [[ "$THUMB_FORMAT" == "avif" ]]; then
+                TEMP_THUMB_AVIF="$TEMP_THUMB_DIR/final.avif"
+                if command -v avifenc >/dev/null 2>&1; then
+                    TEMP_RESIZED="$TEMP_THUMB_DIR/resized.png"
+                    ffmpeg -y -v quiet -i "$DOWNLOADED_THUMB" -frames:v 1 -vf "scale=400:-1" "$TEMP_RESIZED"
+                    avifenc "$TEMP_RESIZED" "$TEMP_THUMB_AVIF" >/dev/null 2>&1
+                    chafa -f kitty --size 200x14 "$TEMP_THUMB_AVIF" 2>/dev/null; and sayln
+                elif ffmpeg -y -v quiet -i "$DOWNLOADED_THUMB" -frames:v 1 -vf "scale=400:-1" -c:v libaom-av1 -still-picture 1 "$TEMP_THUMB_AVIF" 2>/dev/null; then
+                    chafa -f kitty --size 200x14 "$TEMP_THUMB_AVIF" 2>/dev/null; and sayln
+                else
+                    bb_echo "Warning: AVIF encoder ('avifenc' or FFmpeg libaom) not found. Falling back to PNG." >&2
+                    THUMB_FORMAT="png"
+                fi
+            fi
+
+            if [[ "$THUMB_FORMAT" == "heif" ]]; then
+                TEMP_THUMB_HEIF="$TEMP_THUMB_DIR/final.heif"
+                if command -v magick >/dev/null 2>&1; then
+                    magick "$DOWNLOADED_THUMB" -resize 400x "$TEMP_THUMB_HEIF" >/dev/null 2>&1
+                    chafa -f kitty --size 200x14 "$TEMP_THUMB_HEIF" 2>/dev/null; and sayln
+                elif command -v heif-enc >/dev/null 2>&1; then
+                    TEMP_RESIZED="$TEMP_THUMB_DIR/resized.png"
+                    ffmpeg -y -v quiet -i "$DOWNLOADED_THUMB" -frames:v 1 -vf "scale=400:-1" "$TEMP_RESIZED"
+                    heif-enc -q 50 "$TEMP_RESIZED" -o "$TEMP_THUMB_HEIF" >/dev/null 2>&1
+                    chafa -f kitty --size 200x14 "$TEMP_THUMB_HEIF" 2>/dev/null; and sayln
+                else
+                    bb_echo "Warning: HEIF encoder ('magick' or 'heif-enc') not found. Falling back to PNG." >&2
+                    THUMB_FORMAT="png"
+                fi
+            fi
+            
+            # Default or fallback > PNG (Fixed to prevent QOI/AVIF/HEIF from dual-triggering)
+            if [[ "$THUMB_FORMAT" != "webp" && "$THUMB_FORMAT" != "qoi" && "$THUMB_FORMAT" != "avif" && "$THUMB_FORMAT" != "heif" ]]; then
+                TEMP_THUMB_PNG="$TEMP_THUMB_DIR/final.png"
+                if ffmpeg -y -v quiet -i "$DOWNLOADED_THUMB" -vf "scale=400:-1" "$TEMP_THUMB_PNG"; then
+                    viu --height 14 "$TEMP_THUMB_PNG" 2>/dev/null; and sayln
+                else
+                    bb_echo "Error: FFmpeg failed to convert thumbnail." >&2
+                fi
+            fi
+        else
+            bb_echo "Warning: bb-dlp could not fetch a thumbnail for this URL." >&2
+        fi
+        tobackground rm -rf "$TEMP_THUMB_DIR"
+    fi
+fi
+
+log "Executing: ${CMD[*]}"
+
+#
+# Normal Execution (Fixed exit code capture)
+#
+
+# Execute the command directly so $? captures the real exit status
+"${CMD[@]}"
+BIN_EXIT=$?
+
+if [[ $BIN_EXIT -ne 0 ]]; then
+    bb_echo "Error: Rip failed (exit code $BIN_EXIT)." >&2
+    log "ERROR: bb-dlp rip failed (exit $BIN_EXIT)"
+fi
+
+#
+# GStreamer MP3 Execution
+#
+
+if [[ "$AUDIO_MP3_GSTREAMER_MODE" == true && "$UPDATE_MODE" != true && "$LIST_FORMATS_MODE" != true ]]; then
+
+    GSTREAMER_FAILURE=0
+    DOWNLOADED_COUNT=0
+
+    # Read the filepaths bb-dlp dumped into the temp file via --exec
+    if [[ -f "$TEMP_OUTPUT" ]]; then
+        while IFS= read -r downloaded_file; do
+            [[ -z "$downloaded_file" ]] && continue
+
+            if [[ -f "$downloaded_file" ]]; then
+                DOWNLOADED_COUNT=$((DOWNLOADED_COUNT + 1))
+                if ! process_gstreamer_file "$downloaded_file"; then
+                    GSTREAMER_FAILURE=1
+                fi
+            fi
+        done < "$TEMP_OUTPUT"
+        
+        rm -f "$TEMP_OUTPUT"
+    fi
+
+    # Status check - Only run if bb-dlp actually succeeded
+    if [[ "$BIN_EXIT" -eq 0 ]]; then
+        if [[ "$DOWNLOADED_COUNT" -eq 0 ]]; then
+            bb_echo "Error: No ripped audio files were found for GStreamer." >&2
+            log "ERROR: GStreamer mode found no ripped audio files"
+            BIN_EXIT=1
+        elif [[ "$GSTREAMER_FAILURE" -ne 0 ]]; then
+            BIN_EXIT=1
+        fi
+    fi
+
+fi
+
+#
+# Completion handling
+#
+
+if [[ $BIN_EXIT -eq 0 ]]; then
+
+    if [[ "$UPDATE_MODE" != true && "$LIST_FORMATS_MODE" != true ]]; then
+
+        bb_echo "✅ Rip(s) completed successfully."
+        log "Success"
+
+        if [[ -n "$NOTIFY_CMD" ]] && command -v "$NOTIFY_CMD" >/dev/null 2>&1; then
+            "$NOTIFY_CMD" "bb-dlp: Rip complete" "Check $DOWNLOAD_DIR"
+        fi
+
+    fi
+
+else
+    
+    # We only log the failure path here since the exit message was already echoed
+    log "Failed (exit $BIN_EXIT): ${CMD[*]}"
+    exit $BIN_EXIT
+
+fi
