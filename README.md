@@ -1,11 +1,10 @@
  <h1>
- <img src="https://www.qanonsec.com/images/i.php?/upload/2026/10/26/20261026032335-d674bb29-sm.png" alt="sexy-anime" />
- bb-dlp: Blackbox-hwm Video & Audio Ripper
+ <img src="https://www.qanonsec.com/images/i.php?/upload/2026/10/26/20261026032335-d674bb29-sm.png" alt="sexy-anime" /><br>bb-dlp: Blackbox-hwm Video & Audio Ripper
  </h1>
 
 Version: 8.0.0
 
-Ecosystem: GNU Operating System / H-Linux, and the Blackbox-hwm workspace.
+Ecosystem: **GNU Operating System / H-Linux**, and the **Blackbox-hwm** workspace.
 
 **bb-dlp** is an advanced, highly optimized, next-generation terminal-native media ripper built for the Blackbox-hwm 
 environment, but easily adapted for any Linux-based environment.
@@ -37,7 +36,7 @@ Please ensure you are running GNU Operating System / H-Linux with the core packa
   * **Hash**
   * **Human command layer**
   * **H-Linux env library**
-  * **sh2c** can be found here > -New repository coming soon!-
+  * **sh2c** can be found here > *New repository coming soon!*
   * **aria2c** (for NEXT-GEN V2 engine)
 
 Also, ensure the following packages are available on your system:
@@ -54,9 +53,11 @@ Thumbnail Processing: **cwebp**, **qoiconv**, **avifenc**, **imagemagick**, **he
 
 ## Getting Started, Compile & Basic Usage 
 
-Before doing anything, execute the included **bb-dlp-updater.sh** Bash script to source the latest engine binary (saved > $HOME).
+Before doing anything, compile the **bb-dlp-updater.sh** source file with **sh2c** to create an executable updater binary > **bb-dlp-updater** (saved > $HOME).
 
-Compile the **bb-dlp.hash** source file with **sh2c** to create an executable binary > **bb-dlp** (saved > $HOME).
+Now execute the **bb-dlp-updater** binary to source the latest engine binary.
+
+Compile the **bb-dlp.hash** source file with **sh2c** to create an executable program binary > **bb-dlp** (saved > $HOME).
 
 By default, bb-dlp rips media at the highest available quality to **$HOME/Blackbox-hwm/Downloads**
 
