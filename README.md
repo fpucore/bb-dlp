@@ -1,5 +1,5 @@
  <h1>
- <img src="https://www.qanonsec.com/images/i.php?/upload/2026/10/26/20261026032335-d674bb29-sm.png" alt="sexy-anime" /><br>bb-dlp: Blackbox-hwm Video & Audio Ripper
+ <img src="https://www.qanonsec.com/images/i.php?/upload/2026/10/26/20261026032335-d674bb29-sm.png" alt="sexy-anime" /><br>🔥 bb-dlp: Blackbox-hwm Video & Audio Ripper
  </h1>
 
 Version: 8.0.0
