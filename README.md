@@ -1,15 +1,24 @@
-# bb-dlp: Blackbox-hwm Video & Audio Ripper
+ <h1>
+ <img src="https://www.qanonsec.com/images/i.php?/upload/2026/10/26/20261026032335-d674bb29-sm.png" alt="sexy-anime" />
+ bb-dlp: Blackbox-hwm Video & Audio Ripper
+ </h1>
 
-Version: 7.1.0
+Version: 8.0.0
 
-Ecosystem: GNU Operating System / H-Linux and the Blackbox-hwm workspace.
+Ecosystem: GNU Operating System / H-Linux, and the Blackbox-hwm workspace.
 
-**bb-dlp** is a highly optimized, terminal-native media ripper built for the Blackbox-hwm environment, but 
-easily adapted for any Linux-based environment.
+**bb-dlp** is an advanced, highly optimized, next-generation terminal-native media ripper built for the Blackbox-hwm 
+environment, but easily adapted for any Linux-based environment.
 
 It is a multi-engine processing and works by using the yt-dlp binaries in a streamlined, strictly contained 
-interface, introducing advanced memory management, interactive terminal thumbnails, and extensive, 
-natively compiled audio encoding pipelines.
+interface, introducing advanced memory management, interactive terminal thumbnails, and extensive, natively 
+compiled audio encoding pipelines.
+
+Version 8.0.0 introduces **The Pirate Bay Edition** of the NEXT-GEN engine, which replaces standard file copying with a peerless local torrent pipeline:
+
+  - On-The-Fly Metadata: Dynamically generates trackerless .torrent files for items in the RAM buffer.
+  - Loopback WebSeed Seeding: Spins up a temporary local stream server for zero-latency seeding.
+  - Guaranteed Integrity: Executes aria2c to transfer files with full SHA-1 piece verification and block hashing.
 
 bb-dlp is an advanced tool for pirates - Think yt-dlp on steroids!
 
@@ -19,17 +28,18 @@ bb-dlp is an advanced tool for pirates - Think yt-dlp on steroids!
   * Slipstream Buffer Architecture: Eliminates immediate disk I/O thrashing through active RAM staging, transfering to the disk post completion of rip.
   * Dual-Pipeline MP3 Encoding: Dual MP3 encoding pipeline through GStreamer+lamemp3enc and LAME 4.0 or FFmpeg+libmp3lame and LAME 4.0.
   * Lossless & Niche Audio Support: Native conversion pipelines for FLAC, AIFF (libsndfile or ffmpeg), APE (Monkey's Audio), MPC (Musepack), and OFR (OptimFROG).
-  * Native Terminal Thumbnails: Interactively fetches and renders media thumbnails directly in the terminal before ripping. Supports PNG (default+fallback), WebP, QOI, AVIF, and HEIF rendering via viu and chafa.
+  * Native Terminal Thumbnails: Interactively fetches and renders media thumbnails directly in the terminal before ripping. Supports PNG (default+fallback), JPG, WebP, QOI, AVIF, HEIF, JXL and BPG rendering via viu, chafa and bpgview.
 
 ## Dependencies
 
 Please ensure you are running GNU Operating System / H-Linux with the core packages:
 
-  * Hash
-  * Human command layer
-  * H-Linux env library
-  * sh2c
-  
+  * **Hash**
+  * **Human command layer**
+  * **H-Linux env library**
+  * **sh2c** can be found here > -New repository coming soon!-
+  * **aria2c** (for NEXT-GEN V2 engine)
+
 Also, ensure the following packages are available on your system:
 
 Core: **bb-dlp-bin**, **yt-dlp-nightly**, **yt-dlp-stable**, and **deno**
@@ -38,9 +48,15 @@ Audio Engines: **ffmpeg**, **gstreamer**, and **LAME 4.0**
 
 Niche Audio Encoders: **libsndfile**, **mac** (Monkey's Audio), **muse-tools** (Musepack), and **optimfrog-bin**
 
-Thumbnail Processing: **cwebp**, **qoiconv**, **avifenc**, **imagemagick**, **heif-enc**, **viu**, and **chafa**
+Thumbnail Processing: **cwebp**, **qoiconv**, **avifenc**, **imagemagick**, **heif-enc**, **viu**, **chafa**, and **bpgview**
 
-## Basic Usage Prompts
+**bpgview** can be found here > https://www.github.com/fpucore/bpg
+
+## Getting Started, Compile & Basic Usage 
+
+Before doing anything, execute the included **bb-dlp-updater.sh** Bash script to source the latest engine binary (saved > $HOME).
+
+Compile the **bb-dlp.hash** source file with **sh2c** to create an executable binary > **bb-dlp** (saved > $HOME).
 
 By default, bb-dlp rips media at the highest available quality to **$HOME/Blackbox-hwm/Downloads**
 
