@@ -2,7 +2,7 @@
  <img src="https://www.qanonsec.com/images/i.php?/upload/2026/10/26/20261026032335-d674bb29-sm.png" alt="sexy-anime" /><br>🔥 bb-dlp: Blackbox-hwm Video & Audio Ripper
  </h1>
 
-Version: 8.1.0
+Version: 8.2.5
 
 Ecosystem: **GNU Operating System / H-Linux**, and the **Blackbox-hwm** workspace.
 
@@ -13,7 +13,8 @@ It is a multi-engine processing and works by using the yt-dlp binaries in a stre
 interface, introducing advanced memory management, interactive terminal thumbnails, and extensive, natively 
 compiled audio encoding pipelines.
 
-Version 8.0.0 introduced **The Pirate Bay Edition** of the NEXT-GEN engine, which replaces standard file copying with a peerless local torrent pipeline:
+Version 8.0.0 introduced **The Pirate Bay Edition** of the NEXT-GEN (V2) engine, which replaces standard file 
+copying with a peerless local torrent pipeline:
 
   - On-The-Fly Metadata: Dynamically generates trackerless .torrent files for items in the RAM buffer.
   - Loopback WebSeed Seeding: Spins up a temporary local stream server for zero-latency seeding.
@@ -24,6 +25,7 @@ bb-dlp is an advanced tool for pirates - Think yt-dlp on steroids!
 ## Unique Core Features
 
   * Multi-Engine Processing: Processing engine selection, supporting NEXT-GEN (default [bb-dlp-bin]), STORMY [yt-dlp-nightly], and PURE [yt-dlp-stable] backends.
+  * Smart procedural memory management
   * Slipstream Buffer Architecture: Eliminates immediate disk I/O thrashing through active RAM staging, transfering to the disk post completion of rip.
   * Dual-Pipeline MP3 Encoding: Dual MP3 encoding pipeline through GStreamer+lamemp3enc and LAME 4.0 or FFmpeg+libmp3lame and LAME 4.0.
   * Lossless & Niche Audio Support: Native conversion pipelines for FLAC, AIFF (libsndfile or ffmpeg), APE (Monkey's Audio), MPC (Musepack), and OFR (OptimFROG).
@@ -38,6 +40,7 @@ Please ensure you are running GNU Operating System / H-Linux with the core packa
   * **H-Linux environment library**
   * **sh2c** can be found here > *New repository coming soon!*
   * **aria2c** (for NEXT-GEN V2 engine)
+  $ **tpb-local daemon** (Optional: NEXT-GEN (V2) engine)
 
 Also, ensure the following packages are available on your system:
 

@@ -2,7 +2,7 @@
 source /usr/local/lib/h-linux-env.hash
 
 # bb-dlp: Blackbox-hwm Video/Audio Internet Ripper
-# Version: 8.1.0
+# Version: 8.2.5
 
 #
 # This is free and unencumbered software released into the public domain.
@@ -55,7 +55,7 @@ BIN_PURE="/usr/local/bin/yt-dlp-stable"
     # Fallback to BIN_DEFAULT
 BIN="$BIN_DEFAULT"
 
-VERSION="8.1.0"
+VERSION="8.2.5"
 
 DOWNLOAD_DIR="$HOME/Blackbox-hwm/Downloads"
 BUFFER_DIR="/dev/shm/bb-dlp-buffer"
@@ -380,10 +380,16 @@ while true; do
             break
             ;;
         "4")
-            BIN="$BIN_DEFAULT"
-            TORRENT_TRANSFER_MODE=true
-            break
-            ;;
+        # Check the tpb-local daemon is running
+        if ! pgrep "tpb-local" >/dev/null; then
+            sayln; and say "${RED}💿 [bb-dlp]${NC} Error: 'tpb-local' daemon is not running."; and sayln
+            continue
+        fi
+        
+        BIN="$BIN_DEFAULT"
+        TORRENT_TRANSFER_MODE=true
+        break
+        ;;
         *)
             sayln
             say "${RED}💿 [bb-dlp]${NC} Invalid selection. Please enter [1], [2], [3] or [4], and press Return."
@@ -507,7 +513,7 @@ torrent_transfer_to_disk() {
     local torrent_file="$BUFFER_DIR/${filename}.torrent"
     local port=$(( 49152 + RANDOM % 16383 ))
 
-    bb_echo "Generating .torrent metadata for ${YELLOW_BOLD}${filename}${NC}..."
+    say "Generating .torrent metadata for ${YELLOW_BOLD}${filename}${NC}..."
     log "Generating .torrent metadata: $torrent_file"
 
     # Generate a valid trackerless single-file .torrent with an embedded loopback WebSeed (BEP 19)
@@ -565,7 +571,7 @@ PYEOF
         return 1
     fi
 
-    bb_echo "Starting local seed & executing ${BLUE_BOLD}aria2c${NC} torrent transfer to disk..."
+    say "Starting local seed & executing ${BLUE_BOLD}aria2c${NC} torrent transfer to disk..."
     log "Executing aria2c torrent transfer for: $filename"
 
     # Start temporary loopback stream server in RAM buffer directory (detached from stdin)
@@ -748,25 +754,33 @@ else
     #
     elif [[ "$AUDIO_AIFF_LBSND_MODE" == true ]]; then
 
-        bb_echo "Audio encoding selected: libsndfile (AIFF)"
-        log "Audio encoding selected: libsndfile (AIFF)"
+    bb_echo "Audio encoding selected: libsndfile (AIFF)"
+    bb_echo "For this mode bb-dlp will use the legacy disk transfer mechanism to avoid system buffer overruns."
+    log "Audio encoding selected: libsndfile (AIFF) (Legacy disk transfer fallback)"
 
-        CMD+=(--format 140)
-        CMD+=(--output "%(title)s.%(ext)s")
-        CMD+=(--exec "sh -c 'F=\"\$1\"; B=\"\${F%.*}\"; ffmpeg -y -v quiet -i \"\$F\" -c:a pcm_s16le -ar 44100 -ac 2 \"\$B.wav\" </dev/null && sndfile-convert \"\$B.wav\" \"\$B.aiff\" >/dev/null 2>&1 && rm -f \"\$F\" \"\$B.wav\"' _ {}")
-    
+    # Bypass NEXT-GEN V2 torrent loop since the file is already built on hard disk
+    TORRENT_TRANSFER_MODE=false
+
+    CMD+=(--format 140)
+    CMD+=(--output "%(title)s.%(ext)s")
+    CMD+=(--exec "sh -c 'F=\"\$1\"; B=\"\${F%.*}\"; FILE=\"\$(basename \"\$B\")\"; ffmpeg -y -v quiet -i \"\$F\" -c:a pcm_s16le -ar 44100 -ac 2 -f w64 \"$DOWNLOAD_DIR/\$FILE.w64\" </dev/null && sndfile-convert \"$DOWNLOAD_DIR/\$FILE.w64\" \"$DOWNLOAD_DIR/\$FILE.aiff\" >/dev/null 2>&1 && rm -f \"\$F\" \"$DOWNLOAD_DIR/\$FILE.w64\"' _ {}")
+
     #
     # APE
     #
-
+    
     elif [[ "$AUDIO_APE_MODE" == true ]]; then
 
         bb_echo "Audio encoding selected: Monkey's Audio (APE)"
-        log "Audio encoding selected: Monkey's Audio (APE)"
+        bb_echo "For this mode bb-dlp will use the legacy disk transfer mechanism to avoid system buffer overruns."
+        log "Audio encoding selected: Monkey's Audio (APE) (Legacy disk transfer fallback)"
+    
+        # Bypass NEXT-GEN V2 torrent loop since the file is already built on hard disk
+        TORRENT_TRANSFER_MODE=false
 
         CMD+=(--format 140)
         CMD+=(--output "%(title)s.%(ext)s")
-        CMD+=(--exec "sh -c 'F=\"\$1\"; B=\"\${F%.*}\"; ffmpeg -y -v quiet -i \"\$F\" -c:a pcm_s16le -ar 44100 -ac 2 \"\$B.wav\" </dev/null && mac \"\$B.wav\" \"\$B.ape\" -c2000 >/dev/null 2>&1 && rm -f \"\$F\" \"\$B.wav\"' _ {}")
+        CMD+=(--exec "sh -c 'F=\"\$1\"; B=\"\${F%.*}\"; FILE=\"\$(basename \"\$B\")\"; ffmpeg -y -v quiet -i \"\$F\" -c:a pcm_s16le -ar 44100 -ac 2 \"$DOWNLOAD_DIR/\$FILE.wav\" </dev/null && mac \"$DOWNLOAD_DIR/\$FILE.wav\" \"$DOWNLOAD_DIR/\$FILE.ape\" -c2000 >/dev/null 2>&1 && rm -f \"\$F\" \"$DOWNLOAD_DIR/\$FILE.wav\"' _ {}")
 
     #
     # Musepack (MPC)
@@ -779,7 +793,7 @@ else
 
         CMD+=(--format 140)
         CMD+=(--output "%(title)s.%(ext)s")
-        CMD+=(--exec "sh -c 'F=\"\$1\"; B=\"\${F%.*}\"; ffmpeg -y -v quiet -i \"\$F\" -c:a pcm_s16le -ar 44100 -ac 2 \"\$B.wav\" </dev/null && mpcenc --silent \"\$B.wav\" \"\$B.mpc\" >/dev/null 2>&1 && rm -f \"\$F\" \"\$B.wav\"' _ {}")
+        CMD+=(--exec "sh -c 'F=\"\$1\"; B=\"\${F%.*}\"; ffmpeg -y -v quiet -i \"\$F\" -c:a pcm_s16le -ar 44100 -ac 2 -f wav - </dev/null | mpcenc --silent - \"\$B.mpc\" >/dev/null 2>&1 && rm -f \"\$F\"' _ {}")
 
     #
     # OptimFROG (OFR)
@@ -792,7 +806,7 @@ else
 
         CMD+=(--format 140)
         CMD+=(--output "%(title)s.%(ext)s")
-        CMD+=(--exec "sh -c 'F=\"\$1\"; B=\"\${F%.*}\"; ffmpeg -y -v quiet -i \"\$F\" -c:a pcm_s16le -ar 44100 -ac 2 \"\$B.wav\" </dev/null && ofr --encode --silent \"\$B.wav\" --output \"\$B.ofr\" >/dev/null 2>&1 && rm -f \"\$F\" \"\$B.wav\"' _ {}")
+        CMD+=(--exec "sh -c 'F=\"\$1\"; B=\"\${F%.*}\"; ffmpeg -y -v quiet -i \"\$F\" -c:a pcm_s16le -ar 44100 -ac 2 -f wav - </dev/null | ofr --encode --silent -- - --output \"\$B.ofr\" >/dev/null 2>&1 && rm -f \"\$F\"' _ {}")
 
     #
     # M4A
