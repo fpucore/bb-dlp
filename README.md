@@ -39,8 +39,8 @@ Please ensure you are running GNU Operating System / H-Linux with the core packa
   * **H-Linux Human Command Layer**
   * **H-Linux environment library**
   * **sh2c** can be found here > *New repository coming soon!*
-  * **aria2c** (for NEXT-GEN V2 engine)
-  $ **tpb-local daemon** (Optional: NEXT-GEN (V2) engine)
+  * **aria2c** (Optional: NEXT-GEN (V2) engine)
+  * **tpb-local daemon** (Optional: NEXT-GEN (V2) engine)
 
 Also, ensure the following packages are available on your system:
 
